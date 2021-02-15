@@ -8,7 +8,7 @@ from datetime import timedelta
 from float_api import FloatAPI
 
 # Get access token from environment variable
-FLOAT_ACCESS_TOKEN ='f645cd01a48459d3nrycH3Bc3D0MVqB1hHAUjbYPhtj6i7jG+kchvAbwXQo='
+FLOAT_ACCESS_TOKEN ='3902a174fc4f2eabsj+OAjz/Gy9Ww6WGHWV0xVZFYFmd0VKDNpAqlKk2Ya0='
 
 # Create an API object
 api = FloatAPI(FLOAT_ACCESS_TOKEN, 'my_api_demo', 'me@example.org')
@@ -56,12 +56,12 @@ class FloatDotCom:
 
 
 
-  def creatTaskForProject(self,project_id, hours, assignees, task_name,start_date,end_date,notes):
+  def creatTaskForProject(self,project_id, hours, task_owners, task_name,start_date,end_date,notes):
     try:
         peoplesDetails=self.getAllPeoples()
         assignees_id=[]
 
-        for each_assignee in assignees:
+        for each_assignee in task_owners:
             person=self.doesPeopleExistinFloatDotcom(peoplesDetails,each_assignee)
             if person is None:
                person = api.create_person(name=each_assignee)
@@ -100,6 +100,7 @@ class FloatDotCom:
         if project['project_id'] == t['project_id']:
            project_and_task.append(t)
       return project_and_task
+
 
   def getTaskByName(self,project_id,task_name):
       project_and_task=self.getTaskByProject(project_id)

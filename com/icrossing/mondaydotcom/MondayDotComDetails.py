@@ -25,15 +25,13 @@ class MondayDotcom:
         mondayDotCom = resp['data']['boards']
         print('Monday Dot come Boards')
         print(mondayDotCom)
-
-
-
+        return mondayDotCom
 
 
     def updateFlotDotComTask(self,monDashBoard, project_id, project_name):
         for item in monDashBoard['items']:
             print('Item name', item)
-            assignee = None
+            task_owner = None
             hours = None
             start_date = None
             end_date = None
@@ -43,14 +41,14 @@ class MondayDotcom:
 
             for item_columns in item['column_values']:
                 # print('item_column',item_columns)
-                # project_id, hours, assignee, name,start_date,end_date
+                # project_id, hours, task_owner, name,start_date,end_date
                 # print(createdFloatProject['id'])
                 # print(createdFloatProject['name'])
-                if item_columns['title'] == 'Assignee':
-                    # print('Assignee', item_columns['text'])
+                if item_columns['title'] == 'Task Owner':
+                    # print('task_owner', item_columns['text'])
                     splitter=', '
-                    assignee = item_columns['text'].split(splitter) if ', ' in item_columns['text'] else [item_columns['text']]
-                    #print(f'Assignee===={assignee}')
+                    task_owner = item_columns['text'].split(splitter) if ', ' in item_columns['text'] else [item_columns['text']]
+                    #print(f'task_owner===={task_owner}')
                 elif item_columns['title'] == 'Status':
                     pass
                     # print('Status', item_columns['text'])
@@ -83,9 +81,9 @@ class MondayDotcom:
                 if taskExist is not None:
                     floatDotCom.deleteTask(taskExist['task_id'])
                     print('+++deleting task',taskExist['name'])
-                floatProjectTask = floatDotCom.creatTaskForProject(project_id, hours, assignee, task_name,
+                floatProjectTask = floatDotCom.creatTaskForProject(project_id, hours, task_owner, task_name,
                                                                    start_date, end_date, notes)
-                print('task created++++', project_id, hours, assignee, task_name, start_date, end_date)
+                print('task created++++', project_id, hours, task_owner, task_name, start_date, end_date)
                 board_id = monDashBoard['id']
                 item_id = item['id']
                 column_id = integration_Status_Column_id
@@ -96,43 +94,48 @@ class MondayDotcom:
             print('*' * 10)
 
 
-    def pushDataFromMondayToFloat(self):
-        for monDashBoard in mondayDotCom:
-            floatProject = floatDotCom.getProject(monDashBoard['name'])
-            #Add New Project in float dot com
-            if floatProject is None:
-                try:
-                    createdFloatProject = floatDotCom.createProject(monDashBoard['name'])
-                    print('Project created float dot com', createdFloatProject)
-                    project_id = createdFloatProject['project_id']
-                    project_name = createdFloatProject['name']
-                    # get monday dashboard items
-                    self.updateFlotDotComTask(monDashBoard,project_id,project_name)
-                except Exception as ex:
-                    print('ERROR as', ex)
-                    print('Something went wrong while creating Task for  Project', project_name)
-                    floatDotCom.deleteProject(project_id)
-            #Update Existing Project
-            if floatProject is not None:
-                try:
-                    print('Project already exist in float dot com', floatProject)
-                    createdFloatProject = floatProject
-                    project_id = createdFloatProject['project_id']
-                    project_name = createdFloatProject['name']
-                    project_task=floatDotCom.getTaskByProject(project_id)
-                    for task in project_task:
-                        #print('Delete exiting Task for Project from floatDotcom',task)
+    def updateMondayDotcomDetails(self,mondayDotComDetails):
+        projects = floatDotCom.getAllProjects()
+        for p in projects:
+            mondayDotComDashBoard = self.getMondayDotComDashBoardByName(p['name'],mondayDotComDetails)
+            if mondayDotComDashBoard is not None:
+                tasks = floatDotCom.getTaskByProject(p['project_id'])
+                for task in tasks:
+                    dashBoardItem = self.getMondayDotComDashBoardItemByBoardIdAndItemName(
+                        mondayDotComDashBoard['id'], task['name'],mondayDotComDetails)
+                    if dashBoardItem is None:
                         floatDotCom.deleteTask(task['task_id'])
-                        taskName=task['name']
-                        print(f'Deleted exiting Task {taskName} for Project {project_name} from floatDotcom')
-                    # get monday dashboard items
-                    self.updateFlotDotComTask(monDashBoard, project_id, project_name)
-                except Exception as ex:
-                    print('ERROR as', ex)
-                    print('Something went wrong while creating Task for updating Project', project_name)
+                        print(f"Monday Item {task['name']} under DashBoard { mondayDotComDashBoard['name'] } Got deleted")
 
-            #Delete the floatdotcomeProject
 
+
+    def getMondayDotComDashBoardByName(self, board_name,mondayDotComDetails):
+        #mondayDashBoards = self.getMondayDotComDashBoard()
+        for dashBoard in mondayDotComDetails:
+            if dashBoard['name'] == board_name:
+                return dashBoard
+
+    def getMondayDotComDashBoard(self):
+        return monday.boards.fetch_boards()
+
+    def getMondayDotComDashBoardItem(self, board_id):
+        dashBoardItems = monday.boards.fetch_items_by_board_id(board_id)
+        for board in dashBoardItems['data']['boards']:
+            return board['items']
+
+    def getMondayDotComDashBoardItemByBoardIdAndItemName(self, board_id, item_name,mondayDotComDetails):
+        #items = self.getMondayDotComDashBoardItem(board_id)
+        for each_board in mondayDotComDetails:
+            if each_board['id']==board_id:
+                for item in  each_board['items']:
+                    if item['name'] == item_name:
+                        return item
+
+
+        #for item in items:
+            # print('item',item)
+        #    if item['name'] == item_name:
+        #       return item
 
 
     def deletProjectsFromFloat(self):
@@ -145,7 +148,7 @@ class MondayDotcom:
     def createProjecFloatDotcom(self):
         for monDashBoard in mondayDotCom:
             #create only project conatisn Float
-            print('*********Started creating project*********')
+            print('*********Started creating project*********',monDashBoard['name'])
             if monDashBoard['name'].find("Float")!=-1:
                 existFloatProject=floatDotCom.getProject(monDashBoard['name'])
                 if existFloatProject is None:
